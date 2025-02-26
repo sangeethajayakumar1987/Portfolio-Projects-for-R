@@ -1,0 +1,83 @@
+#Download dplyr
+install.packages("dplyr")
+library(dplyr)
+library(ggplot2)
+
+
+#importing FWB dataset
+fwbdata <- read.csv("https://www.consumerfinance.gov/documents/5614/NFWBS_PUF_2016_data.csv")
+
+#Subset : less than $50000 Household income
+lowinc <- fwbdata %>% filter(PPINCIMP <= 4)
+table(lowinc$PPINCIMP)
+
+
+#SELECT Columns from the dataset in R
+lowinc2 <- lowinc %>% select(PPGENDER,PPHHSIZE,PPINCIMP,FWBscore,finalwt)
+
+#Creating a smaller_house dummy variable
+lowinc2$smaller_house <- ifelse(lowinc2$PPHHSIZE <=2,1,0)
+
+
+#Renaming the values of the PPGENDER column Variable
+lowinc2$PPGENDER <- recode(lowinc2$PPGENDER,"1"= "Male","2"= "Female")
+
+#Creating a new categorical variable at the intersection of PPGENDER and small_house
+lowinc2$gen_small_house <- ifelse(lowinc2$PPGENDER == "Female" & lowinc2$smaller_house == 1,"Female living in a smaller house",
+                                  ifelse(lowinc2$PPGENDER == "Female" & lowinc2$smaller_house == 0,"Female living in a larger house",
+                                         ifelse(lowinc2$PPGENDER == "Male" & lowinc2$smaller_house == 1,"Male living in a smaller house", 
+                                                "Male living in a larger house")))
+
+#Create a summary statistical table
+sum_stat_table <-lowinc2 %>% group_by(gen_small_house) %>% 
+                              summarise(Average_FWBscore= round(mean(FWBscore),digits =1),
+                                        Average_FWBscore_weighted= round(weighted.mean(FWBscore),digits =1),
+                                        median_FWBscore = median(FWBscore),
+                                        SD_FWBscore = round(sd(FWBscore),digits =1))
+
+# Another way to use group by sample
+sum_stat_table <-lowinc2 %>% group_by(PPGENDER,smaller_house ) %>% 
+  summarise(Average_FWBscore= round(mean(FWBscore),digits =1),
+            Average_FWBscore_weighted= round(weighted.mean(FWBscore),digits =1),
+            median_FWBscore = median(FWBscore),
+            SD_FWBscore = round(sd(FWBscore),digits =1))
+
+#Creating a barplot
+ggplot(sum_stat_table,aes( x=gen_small_house,y=Average_FWBscore_weighted))+
+      geom_bar(stat ="Identity")+
+      coord_flip()+
+      labs(x="Group",y="Average Fianncial Wellbeing Score")+
+      theme_light()
+
+#Renaming the values of the PPINCIMP column Variable
+lowinc2$PPINCIMP <- recode(lowinc2$PPINCIMP,"1"= "Less than $20,000",
+                           "2"= "$20,000 to $29,999", 
+                           "3"= "$30,000 to $39,999",
+                           "4"= "$40,000 to $49,999")
+
+#Create a summary statistical table
+sum_stat_table <-lowinc2 %>% group_by(gen_small_house,PPINCIMP) %>% 
+  summarise(Average_FWBscore= round(mean(FWBscore),digits =1),
+            Average_FWBscore_weighted= round(weighted.mean(FWBscore),digits =1),
+            median_FWBscore = median(FWBscore),
+            SD_FWBscore = round(sd(FWBscore),digits =1))
+
+#Creating a grouped barplot
+ggplot(sum_stat_table,aes(x=gen_small_house,y=Average_FWBscore_weighted,fill=PPINCIMP))+
+  geom_bar(stat ="Identity",position="dodge")+
+  coord_flip()+
+  labs(x="Group",y="Average Fianncial Wellbeing Score",fill ="Household Income")+
+  theme_light()
+
+#Creating a Stacked barplot
+ggplot(sum_stat_table,aes(x=gen_small_house,y=Average_FWBscore_weighted,fill=PPINCIMP))+
+  geom_bar(stat ="Identity",position="stack")+
+  coord_flip()+
+  labs(x="Group",y="Average Fianncial Wellbeing Score",fill ="Household Income")+
+  theme_light()
+
+
+
+
+
+
